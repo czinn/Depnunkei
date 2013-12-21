@@ -1,0 +1,38 @@
+<html>
+<head>
+<script>
+var FPS = 1.0; //don't need this to be very high, even less than 1.0 is fine
+var GAME_SPEED = 180.0; //ticks per hour (default 1.0)
+
+var frames; //frames since last tick
+
+function init() {
+	frames = 0;
+	
+	tick();
+}
+
+function tick() {
+	frames++;
+	if(frames >= 3600.0 * FPS / GAME_SPEED) {
+		frames = 0;
+		//Do special stuff
+		alert("hi");
+	}
+	//Do more stuff
+	
+	setTimeout(tick, 1000.0 / FPS);
+}
+
+function doTurn() {
+	
+}
+</script>
+</head>
+<body>
+
+<script>
+window.onload = init;
+</script>
+</body>
+</html>
