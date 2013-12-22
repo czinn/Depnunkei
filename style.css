@@ -1,7 +1,7 @@
 body {
 	background-color:#000000;
 	color:#FFFFFF;
-	
+	font-family:"Lucida Console", Lucida, monospace;
 }
 
 div {
@@ -14,13 +14,28 @@ div {
 }
 
 div.stock {
-	border-style:none;
+	position:relative;
+	margin:5px 3px;
+	border-style:outset;
+	border-width:2px;
+	border-color:#FFFFFF;
+	border-radius:2px;
 	width:95%;
 	height:50px;
+	cursor:pointer;
+}
+
+div.stock:hover {
+	background-color:#222222;
+}
+
+div.stock:active{
+	border-style:inset;
+	background-color:#222222;
 }
 
 div.stock p {
-	font-size:12px;
+	font-size:16px;
 	margin:3px;
 }
 
@@ -28,8 +43,20 @@ div.stock>p:first-child {
 	font-size:20px;
 }
 
-div.stock:hover {
-	background-color:#444444;
+div.stock c {
+	position:absolute;
+	right:10px;
+	top:18px;
+	font-size:20px;
+	color:#DDDDDD;
+}
+
+div.stock c.up {
+	color:#00FF00;
+}
+
+div.stock c.down {
+	color:#FF0000;
 }
 
 div.stockholder {
@@ -44,13 +71,13 @@ div.graphholder {
 	position:absolute;
 	top:0px;
 	right:0px;
-	bottom:49.5%;
+	bottom:39.5%;
 	left:315px;
 }
 
 div.infoholder {
 	position:absolute;
-	top:50.5%;
+	top:60.5%;
 	right:0px;
 	bottom:0px;
 	left:315px;

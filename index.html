@@ -3,7 +3,7 @@
 <link rel = "stylesheet" type = "text/css" href = "style.css">
 <script>
 var FPS = 1.0; //don't need this to be very high, even less than 1.0 is fine
-var GAME_SPEED = 180.0; //ticks per hour (default 1.0)
+var GAME_SPEED = 1.0; //ticks per minute (default 1.0)
 
 var frames; //frames since last tick
 
@@ -15,11 +15,11 @@ function init() {
 
 function tick() {
 	frames++;
-	if(frames >= 3600.0 * FPS / GAME_SPEED) {
+	if(frames >= 60.0 * FPS / GAME_SPEED) {
 		frames = 0;
 		//Do special stuff
 	}
-	//Do more stuff
+	//Do less special stuff
 	
 	setTimeout(tick, 1000.0 / FPS);
 }
@@ -34,16 +34,17 @@ function doTurn() {
 	<div class = "stock">
 		<p> BB </p>
 		<p> Bob's Bananas </p>
+		<c class = "up"> &#9650;&ensp;5.00 </c>
 	</div>
-<hr>
 	<div class = "stock">
 		<p> JJ </p>
 		<p> John's Jam </p>
+		<c class = "down"> &#9660;&ensp;13.24 </c>
 	</div>
-<hr>
 	<div class = "stock">
 		<p> SPG </p>
 		<p> Steve's Spaghetti </p>
+		<c> 0.00 </c>
 	</div>
 </div>
 <div class = "graphholder">
