@@ -1,0 +1,65 @@
+body {
+	background-color:#000000;
+	color:#FFFFFF;
+	
+}
+
+div {
+	border-style:solid;
+	border-width:3px;
+	border-color:#FFFFFF;
+	padding:3px;
+	margin:3px;
+	border-radius:6px;
+}
+
+div.stock {
+	border-style:none;
+	width:95%;
+	height:50px;
+}
+
+div.stock p {
+	font-size:12px;
+	margin:3px;
+}
+
+div.stock>p:first-child {
+	font-size:20px;
+}
+
+div.stock:hover {
+	background-color:#444444;
+}
+
+div.stockholder {
+	position:absolute;
+	top:0px;
+	left:0px;
+	bottom:0px;
+	width:300px;
+}
+
+div.graphholder {
+	position:absolute;
+	top:0px;
+	right:0px;
+	bottom:49.5%;
+	left:315px;
+}
+
+div.infoholder {
+	position:absolute;
+	top:50.5%;
+	right:0px;
+	bottom:0px;
+	left:315px;
+}
+
+hr {
+	width:95%;
+	border:0px;
+	color:#FFFFFF;
+	background-color:#FFFFFF;
+	height:2px;
+}
