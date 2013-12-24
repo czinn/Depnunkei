@@ -4,14 +4,79 @@
 <script src = "perlin.js"></script>
 <script>
 var FPS = 1.0; //don't need this to be very high, even less than 1.0 is fine
-var GAME_SPEED = 1.0; //ticks per minute (default 1.0)
+var GAME_SPEED = 10.0; //ticks per minute (default 1.0)
 
 var frames; //frames since last tick
 
+var stocks;
+
+var time;
+
+function Stock(name, abbv) {
+	this.name = name;
+	this.abbv = abbv;
+	
+	this.perlinSeed = Math.round(Math.random() * 10000);
+	this.perlinZoom = 0.1;
+	this.perlinPersist = 0.25;
+	
+	this.getPrice = function(t) {
+		return Math.round(perlin.pnoise(t * this.perlinZoom, this.perlinPersist, 5, this.perlinSeed) * 1000) / 1000;
+	}
+	
+	this.getChange = function(t) {
+		return this.getPrice(t) - this.getPrice(t - 1);
+	}
+	
+	this.getStockDiv = function(t) {
+		var stockDiv = document.createElement("div");
+		stockDiv.className = "stock";
+		var change = this.getChange(t);
+		var stockAbbv = document.createElement("p");
+		stockAbbv.innerHTML = this.abbv;
+		var stockName = document.createElement("p");
+		stockName.innerHTML = this.name;
+		var stockChange = document.createElement("c");
+		if(change > 0) {
+			stockChange.className = "up";
+			stockChange.innerHTML = "&#9650;&ensp;";
+		}
+		if(change < 0) {
+			stockChange.className = "down";
+			stockChange.innerHTML = "&#9660;&ensp;";
+		}
+		stockChange.innerHTML += Math.abs(change).toFixed(3);
+		var stockValue = document.createElement("v");
+		stockValue.innerHTML = this.getPrice(t).toFixed(3);
+		
+		stockDiv.appendChild(stockAbbv);
+		stockDiv.appendChild(stockName);
+		stockDiv.appendChild(stockValue);
+		stockDiv.appendChild(stockChange);
+		return stockDiv;
+	}
+}
+
 function init() {
 	frames = 0;
+	time = 0;
+	
+	stocks = new Array();
+	stocks.push(new Stock("Bob's Bananas", "BB"));
+	stocks.push(new Stock("John's Jam", "JJ"));
+	stocks.push(new Stock("Steve's Spaghetti", "SPG"));
+	
+	updateStockHolder(time);
 	
 	tick();
+}
+
+function updateStockHolder(t) {
+	var stockHolder = document.getElementById("stockholder");
+	stockHolder.innerHTML = "";
+	for(var i = 0; i < stocks.length; i++) {
+		stockHolder.appendChild(stocks[i].getStockDiv(t));
+	}
 }
 
 function tick() {
@@ -19,6 +84,8 @@ function tick() {
 	if(frames >= 60.0 * FPS / GAME_SPEED) {
 		frames = 0;
 		//Do special stuff
+		time++;
+		updateStockHolder(time);
 	}
 	//Do less special stuff
 	
@@ -31,7 +98,7 @@ function doTurn() {
 </script>
 </head>
 <body onselectstart = "return false">
-<div class = "stockholder">
+<div class = "stockholder" id = "stockholder">
 	<div class = "stock">
 		<p> BB </p>
 		<p> Bob's Bananas </p>

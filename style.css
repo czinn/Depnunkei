@@ -46,7 +46,7 @@ div.stock>p:first-child {
 div.stock c {
 	position:absolute;
 	right:10px;
-	top:18px;
+	top:25px;
 	font-size:20px;
 	color:#DDDDDD;
 }
@@ -57,6 +57,14 @@ div.stock c.up {
 
 div.stock c.down {
 	color:#FF0000;
+}
+
+div.stock v {
+	position:absolute;
+	right:10px;
+	top:5px;
+	font-size:20px;
+	color:#FFFFFF;
 }
 
 div.stockholder {

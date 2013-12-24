@@ -6,7 +6,7 @@ var perlin = []
 perlin.noise = function(t, octave, seed) {
 	var n = (T_NOISE_GEN * t + OCTAVE_NOISE_GEN * octave + SEED_NOISE_GEN * seed) & 0x7fffffff;
 	n = (n >> 13) ^ n;
-	return 1.0 - ((n * ((n * n * 53849 + 1421737) & 0x7fffffff) + 468185813) & 0x7fffffff) / 1073741824.0;
+	return ((n * ((n * n * 53849 + 1421737) & 0x7fffffff) + 468185813) & 0x7fffffff) / 2147483648.0;
 }
 
 perlin.interpolate = function(a, b, x) {
