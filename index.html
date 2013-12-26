@@ -3,8 +3,8 @@
 <link rel = "stylesheet" type = "text/css" href = "style.css">
 <script src = "perlin.js"></script>
 <script>
-var FPS = 1.0; //don't need this to be very high, even less than 1.0 is fine
-var GAME_SPEED = 10.0; //ticks per minute (default 1.0)
+var FPS = 10.0; //don't need this to be very high, even less than 1.0 is fine
+var GAME_SPEED = 100.0; //ticks per minute (default 1.0)
 
 var frames; //frames since last tick
 
@@ -12,16 +12,22 @@ var stocks;
 
 var time;
 
-function Stock(name, abbv) {
+var graphType = true;
+
+function Stock(name, abbv, time) {
 	this.name = name;
 	this.abbv = abbv;
+	this.offset = time;
+	
+	this.zeropoint = Math.random() * 100;
+	this.amplitude = this.zeropoint * (1 + 0.1 * Math.random());
 	
 	this.perlinSeed = Math.round(Math.random() * 10000);
-	this.perlinZoom = 0.1;
-	this.perlinPersist = 0.25;
+	this.perlinZoom = 0.001 + 0.005 * Math.random();
+	this.perlinPersist = 0.5;
 	
 	this.getPrice = function(t) {
-		return Math.round(perlin.pnoise(t * this.perlinZoom, this.perlinPersist, 5, this.perlinSeed) * 1000) / 1000;
+		return Math.round((perlin.pnoise((t - this.offset) * this.perlinZoom, this.perlinPersist, 5, this.perlinSeed) * this.amplitude + this.zeropoint) * 1000) / 1000;
 	}
 	
 	this.getChange = function(t) {
@@ -53,7 +59,111 @@ function Stock(name, abbv) {
 		stockDiv.appendChild(stockName);
 		stockDiv.appendChild(stockValue);
 		stockDiv.appendChild(stockChange);
+		
+		stockDiv.onclick = function() { doTurn(); };
 		return stockDiv;
+	}
+	
+	this.getHigh = function(tStart, tEnd) {
+		var maximum = -10000;
+		for(var i = tStart; i <= tEnd; i++) {
+			if(this.getPrice(i) > maximum) {
+				maximum = this.getPrice(i);
+			}
+		}
+		return maximum;
+	}
+	
+	this.getLow = function(tStart, tEnd) {
+		var minimum = 10000;
+		for(var i = tStart; i <= tEnd; i++) {
+			if(this.getPrice(i) < minimum) {
+				minimum = this.getPrice(i);
+			}
+		}
+		return minimum;
+	}
+	
+	this.drawStockGraph = function(tStart, tEnd, canvas) {
+		intervalSize = (tEnd - tStart) / (canvas.width - 30) * 25; //used to be manually input
+	
+		var ctx = canvas.getContext("2d");
+		//Clear canvas
+		ctx.fillStyle = "#FFFFFF";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		
+		//Draw graph axes
+		ctx.strokeStyle = "#000000";
+		ctx.beginPath();
+		ctx.moveTo(20, 10);
+		ctx.lineTo(20, canvas.height - 20);
+		ctx.lineTo(canvas.width - 10, canvas.height - 20);
+		ctx.stroke();
+		
+		//Figure out how many bars are needed
+		var barCount = Math.ceil((tEnd - tStart) / intervalSize); //If the range is not divisible by the interval, round up; the first bar will have incomplete data
+		//Spacing between bars is 3px; find bar width
+		var barWidth = Math.floor((canvas.width - 30 - 3 * barCount) / barCount) + 3;
+		//Figure out the scale of the y-axis
+		var lowest = Math.floor(this.getLow(tStart, tEnd) / 20) * 20;
+		var highest = Math.ceil(this.getHigh(tStart, tEnd) / 20) * 20;
+		var scale = (canvas.height - 30) / (highest - lowest);
+		//Draw the bars
+		for(var i = 0; i < barCount; i++) {
+			//Get data for this bar
+			var ts = Math.max(tEnd - (barCount - i) * intervalSize, tStart);
+			var te = tEnd - (barCount - i - 1) * intervalSize;
+			var open = this.getPrice(ts);
+			var close = this.getPrice(te);
+			var high = this.getHigh(ts, te);
+			var low = this.getLow(ts, te);
+			//Draw the back line
+			ctx.strokeStyle = "#000000";
+			ctx.beginPath();
+			ctx.moveTo(23 + (i + 0.5) * barWidth, canvas.height - 20 - (low - lowest) * scale);
+			ctx.lineTo(23 + (i + 0.5) * barWidth, canvas.height - 20 - (high - lowest) * scale);
+			ctx.stroke();
+			//Draw the bar
+			ctx.fillStyle = close > open ? "#00FF00" : "#FF0000";
+			ctx.fillRect(23 + i * barWidth, canvas.height - 20 - (Math.max(open, close) - lowest) * scale, barWidth - 3, Math.abs(open - close) * scale);
+		}
+	}
+	
+	this.drawLineGraph = function(tStart, tEnd, canvas) {
+		var ctx = canvas.getContext("2d");
+		//Clear canvas
+		ctx.fillStyle = "#FFFFFF";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		
+		//Draw graph axes
+		ctx.strokeStyle = "#000000";
+		ctx.beginPath();
+		ctx.moveTo(20, 10);
+		ctx.lineTo(20, canvas.height - 20);
+		ctx.lineTo(canvas.width - 10, canvas.height - 20);
+		ctx.stroke();
+		
+		//Figure out the scale of the y-axis
+		var lowest = Math.floor(this.getLow(tStart, tEnd) / 20) * 20;
+		var highest = Math.ceil(this.getHigh(tStart, tEnd) / 20) * 20;
+		var scale = (canvas.height - 30) / (highest - lowest);
+		
+		//x-difference between subsequent points
+		var dist = (canvas.width - 30) / (tEnd - tStart);
+		
+		ctx.strokeStyle = "#000000";
+		ctx.beginPath();
+		ctx.moveTo(20, (this.getPrice(tStart) - lowest) * scale);
+		//Last x drawn at
+		var x = 19;
+		for(var i = 0; i < tEnd - tStart; i++) {
+			var currX = Math.floor(i * dist) + 20;
+			if(currX > x) {
+				x = currX;
+				ctx.lineTo(currX, canvas.height - 20 - (this.getPrice(i + tStart) - lowest) * scale);
+			}
+		}
+		ctx.stroke();
 	}
 }
 
@@ -62,9 +172,9 @@ function init() {
 	time = 0;
 	
 	stocks = new Array();
-	stocks.push(new Stock("Bob's Bananas", "BB"));
-	stocks.push(new Stock("John's Jam", "JJ"));
-	stocks.push(new Stock("Steve's Spaghetti", "SPG"));
+	stocks.push(new Stock("Bob's Bananas", "BB", 0));
+	stocks.push(new Stock("John's Jam", "JJ", 0));
+	stocks.push(new Stock("Steve's Spaghetti", "SPG", 0));
 	
 	updateStockHolder(time);
 	
@@ -88,12 +198,21 @@ function tick() {
 		updateStockHolder(time);
 	}
 	//Do less special stuff
+	//Draw the currently selected graph
+	var canvas = document.getElementById("graphcanvas");
+	canvas.width = canvas.parentElement.scrollWidth - 10;
+	canvas.height = canvas.parentElement.scrollHeight - 10;
+	if(graphType) {
+		stocks[0].drawLineGraph(-20, time, canvas);
+	} else {
+		stocks[0].drawStockGraph(-20, time, canvas);
+	}
 	
 	setTimeout(tick, 1000.0 / FPS);
 }
 
 function doTurn() {
-	
+	graphType = !graphType;
 }
 </script>
 </head>
@@ -116,7 +235,7 @@ function doTurn() {
 	</div>
 </div>
 <div class = "graphholder">
-Stuff
+<canvas id = "graphcanvas"></canvas>
 </div>
 <div class = "infoholder">
 Stuff
