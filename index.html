@@ -13,22 +13,38 @@ var stocks;
 var time;
 
 var graphType = true;
+var currGraph = -1;
+var stockId = 0;
+
+var mouseX = -1;
+var mouseY = -1;
+
+var cash = 1000;
 
 function Stock(name, abbv, time) {
 	this.name = name;
 	this.abbv = abbv;
-	this.offset = time;
+	this.offset = time - Math.round(Math.random() * 100);
 	
-	this.zeropoint = Math.random() * 100;
-	this.amplitude = this.zeropoint * (1 + 0.1 * Math.random());
+	this.id = stockId;
+	stockId++;
 	
-	this.perlinSeed = Math.round(Math.random() * 10000);
+	this.zeropoint = -1.1444;
+	this.amplitude = (5 + 95 * Math.random());
+	
 	this.perlinZoom = 0.001 + 0.005 * Math.random();
-	this.perlinPersist = 0.5;
+	this.perlinPersist = 0.4 + 0.4 * Math.random() - this.amplitude * 0.001;
+	
+	this.amount = 0; //number of units that the player has bought
 	
 	this.getPrice = function(t) {
-		return Math.round((perlin.pnoise((t - this.offset) * this.perlinZoom, this.perlinPersist, 5, this.perlinSeed) * this.amplitude + this.zeropoint) * 1000) / 1000;
+		var price = (perlin.pnoise((t - this.offset) * this.perlinZoom, this.perlinPersist, 10, this.perlinSeed) - this.zeropoint) * this.amplitude;
+		return Math.round(price * 1000) / 1000;
 	}
+	
+	do {
+		this.perlinSeed = Math.round(Math.random() * 10000);
+	} while(this.getPrice(time) < 0);
 	
 	this.getChange = function(t) {
 		return this.getPrice(t) - this.getPrice(t - 1);
@@ -60,8 +76,35 @@ function Stock(name, abbv, time) {
 		stockDiv.appendChild(stockValue);
 		stockDiv.appendChild(stockChange);
 		
-		stockDiv.onclick = function() { doTurn(); };
+		stockDiv.id = "stock" + this.abbv;
+		
+		var thisId = this.id;
+		stockDiv.onclick = function() { clickStock(thisId); };
 		return stockDiv;
+	}
+	
+	this.updateStockDiv = function(t) {
+		var stockDiv = document.getElementById("stock" + this.abbv);
+		if(stockDiv == null) return false;
+		
+		var stockValue = stockDiv.childNodes[2];
+		stockValue.innerHTML = this.getPrice(t).toFixed(3);
+		
+		var change = this.getChange(t);
+		var stockChange = stockDiv.childNodes[3];
+		if(change > 0) {
+			stockChange.className = "up";
+			stockChange.innerHTML = "&#9650;&ensp;";
+		} else if(change < 0) {
+			stockChange.className = "down";
+			stockChange.innerHTML = "&#9660;&ensp;";
+		} else {
+			stockChange.className = "";
+			stockChange.innerHTML = "";
+		}
+		stockChange.innerHTML += Math.abs(change).toFixed(3);
+		
+		return true;
 	}
 	
 	this.getHigh = function(tStart, tEnd) {
@@ -85,7 +128,11 @@ function Stock(name, abbv, time) {
 	}
 	
 	this.drawStockGraph = function(tStart, tEnd, canvas) {
-		intervalSize = (tEnd - tStart) / (canvas.width - 30) * 25; //used to be manually input
+		//intervalSize = (tEnd - tStart) / (canvas.width - 30) * 25; //used to be manually input
+		intervalSize = Math.max((tEnd - tStart) / 12, 5);
+		
+		//range / intervalsize = width / barsize = num of bars
+		//intervalsize = range * barsize / width = range / num of bars
 	
 		var ctx = canvas.getContext("2d");
 		//Clear canvas
@@ -108,6 +155,21 @@ function Stock(name, abbv, time) {
 		var lowest = Math.floor(this.getLow(tStart, tEnd) / 20) * 20;
 		var highest = Math.ceil(this.getHigh(tStart, tEnd) / 20) * 20;
 		var scale = (canvas.height - 30) / (highest - lowest);
+		var yLabelInterval = 5;
+		while((highest - lowest) / yLabelInterval > (canvas.height - 30) / 40 && yLabelInterval < 20) yLabelInterval *= 2;
+		
+		// Label the graph
+		ctx.fillStyle = "#000000";
+		ctx.font = "24px Lucida";
+		ctx.fillText(this.name, (canvas.width - ctx.measureText(this.name).width) / 2, 30);
+		ctx.fillText(this.abbv, (canvas.width - ctx.measureText(this.abbv).width) / 2, 60);
+		
+		ctx.font = "12px Lucida";
+		for(var i = 0; i <= (highest - lowest) / yLabelInterval; i++) {
+			var text = (lowest + i * yLabelInterval) + "";
+			ctx.fillText(text, 18 - ctx.measureText(text).width, canvas.height - 18 - (i * (canvas.height - 30) * yLabelInterval / (highest - lowest)));
+		}
+		
 		//Draw the bars
 		for(var i = 0; i < barCount; i++) {
 			//Get data for this bar
@@ -147,20 +209,57 @@ function Stock(name, abbv, time) {
 		var lowest = Math.floor(this.getLow(tStart, tEnd) / 20) * 20;
 		var highest = Math.ceil(this.getHigh(tStart, tEnd) / 20) * 20;
 		var scale = (canvas.height - 30) / (highest - lowest);
+		var yLabelInterval = 5;
+		while((highest - lowest) / yLabelInterval > (canvas.height - 30) / 40 && yLabelInterval < 20) yLabelInterval *= 2;
 		
 		//x-difference between subsequent points
 		var dist = (canvas.width - 30) / (tEnd - tStart);
+		var xLabelInterval = 5;
+		while((tEnd - tStart) / xLabelInterval > (canvas.width - 30) / 40) xLabelInterval *= 2;
+		
+		// Label the graph
+		ctx.fillStyle = "#000000";
+		ctx.font = "24px Lucida";
+		ctx.fillText(this.name, (canvas.width - ctx.measureText(this.name).width) / 2, 30);
+		ctx.fillText(this.abbv, (canvas.width - ctx.measureText(this.abbv).width) / 2, 60);
+		
+		ctx.font = "12px Lucida";
+		for(var i = 0; i <= (highest - lowest) / yLabelInterval; i++) {
+			var text = (lowest + i * yLabelInterval) + "";
+			ctx.fillText(text, 18 - ctx.measureText(text).width, canvas.height - 18 - (i * (canvas.height - 30) * yLabelInterval / (highest - lowest)));
+		}
+		for(var i = 0; i <= (tEnd - tStart) / xLabelInterval; i++) {
+			var text = (tStart + i * xLabelInterval) + "";
+			ctx.fillText(text, 20 + (i * (canvas.width - 30) * xLabelInterval / (tEnd - tStart)) - ctx.measureText(text).width / 2, canvas.height - 5);
+		}
 		
 		ctx.strokeStyle = "#000000";
 		ctx.beginPath();
-		ctx.moveTo(20, (this.getPrice(tStart) - lowest) * scale);
+		ctx.moveTo(20, canvas.height - 20 - (this.getPrice(tStart) - lowest) * scale);
 		//Last x drawn at
 		var x = 19;
-		for(var i = 0; i < tEnd - tStart; i++) {
+		var skipSum = 0; //for averages
+		var skipCount = 0;
+		var drawnMousePoint = false;
+		for(var i = 0; i <= tEnd - tStart; i++) {
 			var currX = Math.floor(i * dist) + 20;
+			skipSum += this.getPrice(i + tStart);
+			skipCount++;
+			var currY = canvas.height - 20 - (skipSum / skipCount - lowest) * scale;
+			if(mouseX != -1 && !drawnMousePoint && currX + dist * 0.5 > mouseX) {
+				ctx.fillStyle = "#000000";
+				ctx.font = "16px Lucida";
+				ctx.fillRect(currX - 2, currY - 2, 4, 4);
+				ctx.fillText("Time: " + (i + tStart), canvas.width / 2 - 50, canvas.height - 40);
+				ctx.fillText("Price: " + this.getPrice(i + tStart).toFixed(3), canvas.width / 2 + 50, canvas.height - 40);
+				drawnMousePoint = true;
+			}
+			
 			if(currX > x) {
 				x = currX;
-				ctx.lineTo(currX, canvas.height - 20 - (this.getPrice(i + tStart) - lowest) * scale);
+				ctx.lineTo(currX, currY);
+				skipSum = 0;
+				skipCount = 0;
 			}
 		}
 		ctx.stroke();
@@ -175,6 +274,13 @@ function init() {
 	stocks.push(new Stock("Bob's Bananas", "BB", 0));
 	stocks.push(new Stock("John's Jam", "JJ", 0));
 	stocks.push(new Stock("Steve's Spaghetti", "SPG", 0));
+	stocks.push(new Stock("Alpha Apples", "AAP", 0));
+	stocks.push(new Stock("Gamma Grapes", "GG", 0));
+	stocks.push(new Stock("Omega Oranges", "OMG", 0));
+	stocks.push(new Stock("Pi Potatoes", "PIP", 0));
+	stocks.push(new Stock("Sigma Strawberries", "SS", 0));
+	stocks.push(new Stock("Rho Raspberries", "RHR", 0));
+	stocks.push(new Stock("Beta Blueberries", "BBB", 0));
 	
 	updateStockHolder(time);
 	
@@ -183,9 +289,11 @@ function init() {
 
 function updateStockHolder(t) {
 	var stockHolder = document.getElementById("stockholder");
-	stockHolder.innerHTML = "";
+	//stockHolder.innerHTML = "";
 	for(var i = 0; i < stocks.length; i++) {
-		stockHolder.appendChild(stocks[i].getStockDiv(t));
+		if(!stocks[i].updateStockDiv(t)) {
+			stockHolder.appendChild(stocks[i].getStockDiv(t));
+		}
 	}
 }
 
@@ -198,47 +306,189 @@ function tick() {
 		updateStockHolder(time);
 	}
 	//Do less special stuff
+	updateGraph();
+	updateInfoLeft();
+	updateInfoRight();
+	
+	setTimeout(tick, 1000.0 / FPS);
+}
+
+function updateGraph() {
 	//Draw the currently selected graph
 	var canvas = document.getElementById("graphcanvas");
 	canvas.width = canvas.parentElement.scrollWidth - 10;
 	canvas.height = canvas.parentElement.scrollHeight - 10;
-	if(graphType) {
-		stocks[0].drawLineGraph(-20, time, canvas);
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		if(graphType) {
+			stocks[currStockIndex].drawLineGraph(-20, time, canvas);
+		} else {
+			stocks[currStockIndex].drawStockGraph(-20, time, canvas);
+		}
 	} else {
-		stocks[0].drawStockGraph(-20, time, canvas);
+		var ctx = canvas.getContext("2d");
+		ctx.fillStyle = "#FFFFFF";
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		ctx.fillStyle = "#000000";
+		ctx.font = "24px Lucida";
+		var text = "Select a stock to see a graph";
+		ctx.fillText(text, (canvas.width - ctx.measureText(text).width) / 2, canvas.height / 2 - 12);
 	}
-	
-	setTimeout(tick, 1000.0 / FPS);
+}
+
+function updateInfoLeft() {
+	var infodiv = document.getElementById("infoleft");
+	infodiv.innerHTML = "";
+	infodiv.innerHTML += "<p>Cash: " + cash.toFixed(3) + "</p>\n";
+	if(totalStockOwned() > 0) {
+		var tabletext = "<table><tr><td>Stock</td><td>Units</td><td>Value</td></tr>";
+		for(var i = 0; i < stocks.length; i++) {
+			if(stocks[i].amount > 0) {
+				tabletext += "<tr><td>" + stocks[i].abbv + "</td><td>" + stocks[i].amount + "</td><td>" + (stocks[i].getPrice(time) * stocks[i].amount).toFixed(3) + "</td></tr>";
+			}
+		}
+		tabletext += "</table>";
+		infodiv.innerHTML += tabletext;
+	} else {
+		infodiv.innerHTML += "<p>No stock owned. Buy some!</p>";
+	}
+}
+
+function updateInfoRight() {
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var stock = stocks[currStockIndex];
+		document.getElementById("infostockname").innerHTML = stock.name;
+		document.getElementById("infostockabbv").innerHTML = stock.abbv;
+		document.getElementById("infoowned").innerHTML = "Owned: " + stock.amount;
+		var amt = parseInt(document.getElementById("buysellamt").value);
+		if(!amt) amt = 0;
+		document.getElementById("buybutton").innerHTML = "Buy for " + (stock.getPrice(time) * amt).toFixed(3);
+		document.getElementById("sellbutton").innerHTML = "Sell for " + (stock.getPrice(time) * amt).toFixed(3);
+		document.getElementById("buyallbutton").innerHTML = "Buy Max for " + (stock.getPrice(time) * Math.floor(cash / stock.getPrice(time))).toFixed(3);
+		document.getElementById("sellallbutton").innerHTML = "Sell All for " + (stock.getPrice(time) * stock.amount).toFixed(3);
+	} else {
+		document.getElementById("infostockname").innerHTML = "Select a stock";
+		document.getElementById("infostockabbv").innerHTML = "to see info here";
+		document.getElementById("infoowned").innerHTML = "";
+		document.getElementById("buybutton").innerHTML = "Buy...";
+		document.getElementById("sellbutton").innerHTML = "Sell...";
+		document.getElementById("buyallbutton").innerHTML = "Buy Max";
+		document.getElementById("sellallbutton").innerHTML = "Sell All";
+	}
+}
+
+function totalStockOwned() { //price of all owned stocks
+	var total = 0;
+	for(var i = 0; i < stocks.length; i++) {
+		total += stocks[i].amount * stocks[i].getPrice(time);
+	}
+	return total;
 }
 
 function doTurn() {
 	graphType = !graphType;
 }
+
+function clickStock(id) {
+	currGraph = id;
+}
+
+function stockIdToIndex(id) {
+	for(var i = 0; i < stocks.length; i++) {
+		if(stocks[i].id == id) return i;
+	}
+	return -1;
+}
+
+function graphMouseMove(e) {
+	mouseX = e.layerX - 2;
+	mouseY = e.layerY - 2;
+	updateGraph();
+}
+
+function graphMouseLeave(e) {
+	mouseX = -1;
+	mouseY = -1;
+}
+
+function buyButton() {
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var amt = parseInt(document.getElementById("buysellamt").value);
+		buyStock(amt);
+	}
+}
+
+function sellButton() {
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var amt = parseInt(document.getElementById("buysellamt").value);
+		sellStock(amt);
+	}
+}
+
+function buyAllButton() {
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var stock = stocks[currStockIndex];
+		var amt = Math.floor(cash / stock.getPrice(time));
+		buyStock(amt);
+	}
+}
+
+function sellAllButton() {
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var stock = stocks[currStockIndex];
+		var amt = stock.amount;
+		sellStock(amt);
+	}
+}
+
+function buyStock(amt) {
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var stock = stocks[currStockIndex];
+		//Ensure that we have enough money
+		if(amt * stock.getPrice(time) <= cash) {
+			stock.amount += amt;
+			cash -= amt * stock.getPrice(time);
+		} else {
+			//Not enough money
+		}
+	}
+}
+
+function sellStock(amt) {
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var stock = stocks[currStockIndex];
+		//Ensure that we have enough stock
+		if(stock.amount <= amt) {
+			stock.amount -= amt;
+			cash += amt * stock.getPrice(time);
+		}
+	}
+}
 </script>
 </head>
 <body onselectstart = "return false">
-<div class = "stockholder" id = "stockholder">
-	<div class = "stock">
-		<p> BB </p>
-		<p> Bob's Bananas </p>
-		<c class = "up"> &#9650;&ensp;5.00 </c>
-	</div>
-	<div class = "stock">
-		<p> JJ </p>
-		<p> John's Jam </p>
-		<c class = "down"> &#9660;&ensp;13.24 </c>
-	</div>
-	<div class = "stock">
-		<p> SPG </p>
-		<p> Steve's Spaghetti </p>
-		<c> 0.00 </c>
-	</div>
-</div>
+<div class = "stockholder" id = "stockholder"></div>
 <div class = "graphholder">
-<canvas id = "graphcanvas"></canvas>
+	<canvas id = "graphcanvas" onmousemove = "graphMouseMove(event)" onmouseleave = "graphMouseLeave(event)"></canvas>
 </div>
-<div class = "infoholder">
-Stuff
+<div id = "infoleft" class = "infoholderleft">
+</div>
+<div id = "inforight" class = "infoholderright">
+	<p id = "infostockname">Select a stock</p>
+	<p id = "infostockabbv">to see info here</p><br>
+	<p id = "infoowned">Owned: 0</p>
+	<div class = "button" id = "buybutton" onclick = "buyButton()" style = "width:30%;height:35px">Buy for 00000.000</div>
+	<input type = "text" id = "buysellamt" placeholder = "Amount" style = "width:30%;height:45px;"></input>
+	<div class = "button" id = "sellbutton" onclick = "sellButton()" style = "width:30%;height:35px;">Sell for 00000.000</div><br><br>
+	<div class = "button" id = "buyallbutton" style = "width:45.5%;height:35px;" onclick = "buyAllButton()">Buy Max for 00000.000</div>
+	<div class = "button" id = "sellallbutton" style = "width:45.5%;height:35px;" onclick = "sellAllButton()">Sell All for 00000.000</div><br><br>
 </div>
 <script>
 window.onload = init;

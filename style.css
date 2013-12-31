@@ -4,6 +4,19 @@ body {
 	font-family:"Lucida Console", Lucida, monospace;
 }
 
+table {
+	border-style:solid;
+	border-width:3px;
+	border-color:#FFFFFF;
+	border-radius:6px;	
+}
+
+td {
+	width:100px;
+	height:16px;
+	font-size:16px;
+}
+
 div {
 	border-style:solid;
 	border-width:3px;
@@ -11,6 +24,27 @@ div {
 	padding:3px;
 	margin:3px;
 	border-radius:6px;
+}
+
+div.button {
+	float:left;
+	border-style:outset;
+	border-width:2px;
+	border-color:#FFFFFF;
+	border-radius:2px;
+	width:200px;
+	height:16px;
+	font-size:16px;
+	cursor:pointer;
+}
+
+div.button:hover {
+	background-color:#222222;
+}
+
+div.button:active {
+	border-style:inset;
+	background-color:#222222;
 }
 
 div.stock {
@@ -29,7 +63,7 @@ div.stock:hover {
 	background-color:#222222;
 }
 
-div.stock:active{
+div.stock:active {
 	border-style:inset;
 	background-color:#222222;
 }
@@ -73,6 +107,7 @@ div.stockholder {
 	left:0px;
 	bottom:0px;
 	width:300px;
+	overflow-y:scroll;
 }
 
 div.graphholder {
@@ -89,12 +124,47 @@ div.graphholder canvas {
 	margin:0px;
 }
 
-div.infoholder {
+div.infoholderleft {
+	position:absolute;
+	top:60.5%;
+	bottom:0px;
+	left:315px;
+	width:300px;
+	text-align:center;
+	overflow-y:scroll;
+}
+
+div.infoholderright {
 	position:absolute;
 	top:60.5%;
 	right:0px;
 	bottom:0px;
-	left:315px;
+	left:630px;
+	text-align:center;
+}
+
+div.infoholderright p {
+	font-size:16px;
+	margin:3px;
+}
+
+div.infoholderright>p:first-child {
+	font-size:20px;
+}
+
+input{
+	width:79px;
+	height:26px;
+	font-size:16px;
+	border-style:inset;
+	border-color:#FFFFFF;
+	background-color:#FFFFFF;
+	color:#000000;
+	border-width:2px;
+	border-radius:2px;
+	padding:3px;
+	margin:3px;
+	float:left;
 }
 
 hr {
