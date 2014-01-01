@@ -3,13 +3,16 @@
 <link rel = "stylesheet" type = "text/css" href = "style.css">
 <script src = "perlin.js"></script>
 <script>
-var FPS = 10.0; //don't need this to be very high, even less than 1.0 is fine
+var FPS = 20.0; //should be at least 20 for alerts
 var GAME_SPEED = 100.0; //ticks per minute (default 1.0)
+var ALERT_SPEED = 100.0; //pixels per second
 
 var frames; //frames since last tick
 
 var stocks;
 var stockNumber = 20; //there will always be 20 stocks
+
+var alerts;
 
 var prefixes = [["Alpha", "A"],
 				["Quantum", "QM"],
@@ -81,6 +84,33 @@ var mouseY = -1;
 
 var cash = 1000;
 
+function Alert(text) {
+	this.text = text;
+	var canvas = document.getElementById("alertscanvas");
+	var ctx = canvas.getContext("2d");
+	this.width = ctx.measureText(this.text).width;
+	this.position = canvas.width;
+	this.seen = false;
+	
+	this.rightPos = function() {
+		return this.position + this.width;
+	}
+	
+	this.done = function() {
+		return this.rightPos() < 0;
+	}
+	
+	this.tick = function() {
+		var dist = ALERT_SPEED / FPS;
+		this.position -= dist;
+	}
+}
+
+function addAlert(text) {
+	alerts.push(new Alert(text));
+	//Potentially do something
+}
+
 function Stock(time) {
 	this.name = "placeholderplaceholder";
 	this.abbv = "placeholder";
@@ -108,6 +138,7 @@ function Stock(time) {
 	this.perlinPersist = 0.4 + 0.4 * Math.random() - this.amplitude * 0.001;
 	
 	this.amount = 0; //number of units that the player has bought
+	this.crashed = false;
 	
 	this.getPrice = function(t) {
 		var price = (perlin.pnoise((t - this.offset) * this.perlinZoom, this.perlinPersist, 10, this.perlinSeed) - this.zeropoint) * this.amplitude;
@@ -345,6 +376,8 @@ function init() {
 	stocks = new Array();
 	generateStocks();
 	
+	alerts = new Array();
+	
 	updateStockHolder(time);
 	
 	tick();
@@ -359,11 +392,14 @@ function generateStocks() {
 function crashStocks() {
 	for(var i = 0; i < stocks.length; i++) {
 		if(stocks[i].getPrice(time) <= 0) {
-			stocks.splice(i, 1);
+			var stock = stocks.splice(i, 1);
+			stock[0].crashed = true;
+			addAlert(stock[0].name + " has crashed.");
 			break;
 		}
 	}
 	if(stocks.length < stockNumber) {
+		document.getElementById("stockholder").innerHTML = "";
 		generateStocks();
 		crashStocks();
 	}
@@ -392,6 +428,7 @@ function tick() {
 	updateGraph();
 	updateInfoLeft();
 	updateInfoRight();
+	updateAlerts();
 	
 	setTimeout(tick, 1000.0 / FPS);
 }
@@ -416,6 +453,28 @@ function updateGraph() {
 		ctx.font = "24px Lucida";
 		var text = "Select a stock to see a graph";
 		ctx.fillText(text, (canvas.width - ctx.measureText(text).width) / 2, canvas.height / 2 - 12);
+	}
+}
+
+function updateAlerts() {
+	var canvas = document.getElementById("alertscanvas");
+	canvas.width = canvas.parentElement.scrollWidth;
+	canvas.height = canvas.parentElement.scrollHeight;
+	var ctx = canvas.getContext("2d");
+	ctx.fillStyle = "#FFFFFF";
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = "#000000";
+	ctx.font = "20px Lucida";
+	for(var i = 0; i < alerts.length; i++) {
+		var a = alerts[i];
+		if(!a.done()) {
+			//Check that previous alert has gone
+			if((i == 0 || alerts[i - 1].done() || alerts[i - 1].rightPos() + 100 < a.position) && !(i == alerts.length - 1 && a.position + a.width / 2 < canvas.width / 2)) {
+				a.tick();
+			}
+			if(a.position < canvas.width)
+				ctx.fillText(a.text, a.position, canvas.height - 4);
+		}
 	}
 }
 
@@ -580,6 +639,7 @@ function sellStock(amt) {
 	<div class = "button" id = "buyallbutton" style = "width:45.5%;height:35px;" onclick = "buyAllButton()">Buy Max for 00000.000</div>
 	<div class = "button" id = "sellallbutton" style = "width:45.5%;height:35px;" onclick = "sellAllButton()">Sell All for 00000.000</div><br><br>
 </div>
+<div class = "alerts"><canvas id = "alertscanvas"></canvas></div>
 <script>
 window.onload = init;
 </script>
