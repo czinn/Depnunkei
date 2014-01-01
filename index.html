@@ -9,6 +9,66 @@ var GAME_SPEED = 100.0; //ticks per minute (default 1.0)
 var frames; //frames since last tick
 
 var stocks;
+var stockNumber = 20; //there will always be 20 stocks
+
+var prefixes = [["Alpha", "A"],
+				["Quantum", "QM"],
+				["Omega", "OG"],
+				["Northern", "N"],
+				["Southern", "S"],
+				["Eastern", "E"],
+				["Western", "W"],
+				["Professional", "PF"],
+				["Green", "GR"],
+				["Yellow", "YL"],
+				["Red", "RD"],
+				["Blue", "BL"],
+				["Steve's", "ST"],
+				["Luxury", "LX"],
+				["Economy", "EC"],
+				["Ripoff", "RP"],
+				["Canadian", "CA"],
+				["Japanese", "JP"],
+				["Chinese", "CH"],
+				["American", "AM"],
+				["Russian", "RU"],
+				["Grandma's", "GM"],
+				["Lucky", "LK"],
+				["Phoenix", "PX"]];
+var suffixes = [["Mining", "MN"],
+				["Steel", "S"],
+				["Potatoes", "PT"],
+				["Diamonds", "D"],
+				["Jewels", "JW"],
+				["Sculptures", "SC"],
+				["Pizza", "PZ"],
+				["Pants", "PN"],
+				["Grapes", "G"],
+				["Soda", "SD"],
+				["Hats", "H"],
+				["Boats", "B"],
+				["Apples", "AP"],
+				["Design", "DG"],
+				["Pets", "P"],
+				["Tomatoes", "TT"],
+				["Paper", "PP"],
+				["Cars", "C"],
+				["Cookies", "CK"],
+				["Potions", "PT"],
+				["Fruit", "F"],
+				["Turtles", "TR"],
+				["Gold", "AU"],
+				["Metal", "MT"],
+				["Dairy", "DR"],
+				["Dye", "DY"],
+				["Architecture", "AR"],
+				["Construction", "CN"],
+				["Demolition", "DM"],
+				["Beef", "BF"],
+				["Chicken", "CH"],
+				["Eggs", "EG"],
+				["Pork", "PK"],
+				["Graphs", "GR"]];
 
 var time;
 
@@ -21,9 +81,21 @@ var mouseY = -1;
 
 var cash = 1000;
 
-function Stock(name, abbv, time) {
-	this.name = name;
-	this.abbv = abbv;
+function Stock(time) {
+	this.name = "placeholderplaceholder";
+	this.abbv = "placeholder";
+	while(getStockIdByAbbv(this.abbv) != -1 || this.name.length > 16) {
+		var prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+		var suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
+		this.name = prefix[0] + " " + suffix[0];
+		this.abbv = suffix[1];
+		if(this.abbv.length == 2) {
+			this.abbv = prefix[1].substring(0, 1) + this.abbv;
+		} else {
+			this.abbv = prefix[1] + this.abbv;
+		}
+	}
+		
 	this.offset = time - Math.round(Math.random() * 100);
 	
 	this.id = stockId;
@@ -76,7 +148,7 @@ function Stock(name, abbv, time) {
 		stockDiv.appendChild(stockValue);
 		stockDiv.appendChild(stockChange);
 		
-		stockDiv.id = "stock" + this.abbv;
+		stockDiv.id = "stock" + this.id;
 		
 		var thisId = this.id;
 		stockDiv.onclick = function() { clickStock(thisId); };
@@ -84,7 +156,7 @@ function Stock(name, abbv, time) {
 	}
 	
 	this.updateStockDiv = function(t) {
-		var stockDiv = document.getElementById("stock" + this.abbv);
+		var stockDiv = document.getElementById("stock" + this.id);
 		if(stockDiv == null) return false;
 		
 		var stockValue = stockDiv.childNodes[2];
@@ -271,20 +343,30 @@ function init() {
 	time = 0;
 	
 	stocks = new Array();
-	stocks.push(new Stock("Bob's Bananas", "BB", 0));
-	stocks.push(new Stock("John's Jam", "JJ", 0));
-	stocks.push(new Stock("Steve's Spaghetti", "SPG", 0));
-	stocks.push(new Stock("Alpha Apples", "AAP", 0));
-	stocks.push(new Stock("Gamma Grapes", "GG", 0));
-	stocks.push(new Stock("Omega Oranges", "OMG", 0));
-	stocks.push(new Stock("Pi Potatoes", "PIP", 0));
-	stocks.push(new Stock("Sigma Strawberries", "SS", 0));
-	stocks.push(new Stock("Rho Raspberries", "RHR", 0));
-	stocks.push(new Stock("Beta Blueberries", "BBB", 0));
+	generateStocks();
 	
 	updateStockHolder(time);
 	
 	tick();
+}
+
+function generateStocks() {
+	while(stocks.length < stockNumber) {
+		stocks.push(new Stock(time));
+	}
+}
+
+function crashStocks() {
+	for(var i = 0; i < stocks.length; i++) {
+		if(stocks[i].getPrice(time) <= 0) {
+			stocks.splice(i, 1);
+			break;
+		}
+	}
+	if(stocks.length < stockNumber) {
+		generateStocks();
+		crashStocks();
+	}
 }
 
 function updateStockHolder(t) {
@@ -303,6 +385,7 @@ function tick() {
 		frames = 0;
 		//Do special stuff
 		time++;
+		crashStocks();
 		updateStockHolder(time);
 	}
 	//Do less special stuff
@@ -321,9 +404,9 @@ function updateGraph() {
 	var currStockIndex = stockIdToIndex(currGraph);
 	if(currStockIndex != -1) {
 		if(graphType) {
-			stocks[currStockIndex].drawLineGraph(-20, time, canvas);
+			stocks[currStockIndex].drawLineGraph(-100, time, canvas);
 		} else {
-			stocks[currStockIndex].drawStockGraph(-20, time, canvas);
+			stocks[currStockIndex].drawStockGraph(-100, time, canvas);
 		}
 	} else {
 		var ctx = canvas.getContext("2d");
@@ -360,7 +443,7 @@ function updateInfoRight() {
 		var stock = stocks[currStockIndex];
 		document.getElementById("infostockname").innerHTML = stock.name;
 		document.getElementById("infostockabbv").innerHTML = stock.abbv;
-		document.getElementById("infoowned").innerHTML = "Owned: " + stock.amount;
+		document.getElementById("infoowned").innerHTML = "Price: " + stock.getPrice(time).toFixed(3) + "&nbsp;&nbsp;&nbsp;Owned: " + stock.amount + "&nbsp;&nbsp;&nbsp;Value: " + (stock.getPrice(time) * stock.amount).toFixed(3);
 		var amt = parseInt(document.getElementById("buysellamt").value);
 		if(!amt) amt = 0;
 		document.getElementById("buybutton").innerHTML = "Buy for " + (stock.getPrice(time) * amt).toFixed(3);
@@ -397,6 +480,13 @@ function clickStock(id) {
 function stockIdToIndex(id) {
 	for(var i = 0; i < stocks.length; i++) {
 		if(stocks[i].id == id) return i;
+	}
+	return -1;
+}
+
+function getStockIdByAbbv(abbv) {
+	for(var i = 0; i < stocks.length; i++) {
+		if(stocks[i].abbv == abbv) return i;
 	}
 	return -1;
 }
@@ -465,7 +555,7 @@ function sellStock(amt) {
 	if(currStockIndex != -1) {
 		var stock = stocks[currStockIndex];
 		//Ensure that we have enough stock
-		if(stock.amount <= amt) {
+		if(stock.amount >= amt) {
 			stock.amount -= amt;
 			cash += amt * stock.getPrice(time);
 		}
