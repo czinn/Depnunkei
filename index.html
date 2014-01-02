@@ -131,7 +131,7 @@ function Stock(time) {
 	this.id = stockId;
 	stockId++;
 	
-	this.zeropoint = -1.1444;
+	this.zeropoint = -0.1444;
 	this.amplitude = (5 + 95 * Math.random());
 	
 	this.perlinZoom = 0.001 + 0.005 * Math.random();
@@ -429,6 +429,7 @@ function tick() {
 	updateInfoLeft();
 	updateInfoRight();
 	updateAlerts();
+	updateAllAlerts();
 	
 	setTimeout(tick, 1000.0 / FPS);
 }
@@ -620,6 +621,57 @@ function sellStock(amt) {
 		}
 	}
 }
+
+function showFader(tf) {
+	var fader = document.getElementById("fader");
+	if(tf) {
+		fader.style.display = "block";
+	} else {
+		fader.style.display = "none";
+	}
+}
+
+function faderActive() {
+	return document.getElementById("fader").style.display != "none";
+}
+
+function showAllAlerts(tf) {
+	showFader(tf);
+	var allAlerts = document.getElementById("allalerts");
+	if(tf) {
+		allAlerts.style.display = "block";
+	} else {
+		allAlerts.style.display = "none";
+	}
+}
+
+function allAlertsActive() {
+	return document.getElementById("allalerts").style.display != "none";
+}
+
+function clickFader() {
+	showFader(false);
+	if(allAlertsActive()) {
+		showAllAlerts(false);
+		//Mark all alerts as seen
+		for(var i = 0; i < alerts.length; i++) {
+			alerts[i].seen = true;
+		}
+	}
+}
+
+function clickAlerts() {
+	showAllAlerts(true);
+	updateAllAlerts();
+}
+
+function updateAllAlerts() {
+	var aalerts = document.getElementById("allalerts");
+	aalerts.innerHTML = "<p class = \"title\">Message Log</p>";
+	for(var i = alerts.length - 1; i >= 0; i--) {
+		aalerts.innerHTML += "<p" + (alerts[i].seen ? "" : " class = \"new\"") + ">" + alerts[i].text + "</p>";
+	}
+}
 </script>
 </head>
 <body onselectstart = "return false">
@@ -639,7 +691,9 @@ function sellStock(amt) {
 	<div class = "button" id = "buyallbutton" style = "width:45.5%;height:35px;" onclick = "buyAllButton()">Buy Max for 00000.000</div>
 	<div class = "button" id = "sellallbutton" style = "width:45.5%;height:35px;" onclick = "sellAllButton()">Sell All for 00000.000</div><br><br>
 </div>
-<div class = "alerts"><canvas id = "alertscanvas"></canvas></div>
+<div class = "alerts" onclick = "clickAlerts()"><canvas id = "alertscanvas"></canvas></div>
+<div id = "fader" class = "fader" onclick = "clickFader()"></div>
+<div id = "allalerts" class = "allalerts"></div>
 <script>
 window.onload = init;
 </script>
