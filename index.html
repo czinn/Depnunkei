@@ -126,9 +126,9 @@ function addAlert(text) {
 }
 
 function Stock(time) {
-	
 	this.name = "placeholderplaceholder";
 	this.abbv = "placeholder";
+	
 	while(getStockIdByAbbv(this.abbv) != -1 || this.name.length > 16) {
 		var prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
 		var suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
@@ -157,6 +157,9 @@ function Stock(time) {
 	this.amount = 0; //number of units that the player has bought
 	this.crashed = false;
 	
+	this.sellBelow = 0; //0 means don't autosell
+	this.sellAbove = 0;
+	
 	this.getPrice = function(t) {
 		var price = (perlin.pnoise((t - this.offset) * this.perlinZoom, this.perlinPersist, 10, this.perlinSeed) - this.zeropoint) * this.amplitude;
 		return Math.round(price * 1000) / 1000;
@@ -175,6 +178,10 @@ function Stock(time) {
 	
 	this.getChange = function(t) {
 		return this.getPrice(t) - this.getPrice(t - 1);
+	}
+	
+	this.dispName = function() {
+		return this.name + " (" + this.abbv + ")";
 	}
 	
 	this.getStockDiv = function(t) {
@@ -409,16 +416,20 @@ function init() {
 
 function generateStocks() {
 	while(stocks.length < stockNumber) {
-		stocks.push(new Stock(time));
+		var stock = new Stock(time);
+		if(time != 0) {
+			addAlert(stock.dispName() + " has arrived on the market");
+		}
+		stocks.push(stock);
 	}
 }
 
 function crashStocks() {
 	for(var i = 0; i < stocks.length; i++) {
 		if(stocks[i].getPrice(time) <= 0) {
-			var stock = stocks.splice(i, 1);
-			stock[0].crashed = true;
-			addAlert(stock[0].name + " has crashed.");
+			var stock = stocks.splice(i, 1)[0];
+			stock.crashed = true;
+			addAlert(stock.dispName() + " has crashed");
 			break;
 		}
 	}
@@ -429,12 +440,12 @@ function crashStocks() {
 	}
 }
 
-function updateStockHolder(t) {
+function updateStockHolder() {
 	var stockHolder = document.getElementById("stockholder");
 	//stockHolder.innerHTML = "";
 	for(var i = 0; i < stocks.length; i++) {
-		if(!stocks[i].updateStockDiv(t)) {
-			stockHolder.appendChild(stocks[i].getStockDiv(t));
+		if(!stocks[i].updateStockDiv(time)) {
+			stockHolder.appendChild(stocks[i].getStockDiv(time));
 		}
 	}
 }
@@ -446,7 +457,8 @@ function tick() {
 		//Do special stuff
 		time++;
 		crashStocks();
-		updateStockHolder(time);
+		autoSellStocks();
+		updateStockHolder();
 	}
 	//Do less special stuff
 	updateTimers();
@@ -557,6 +569,18 @@ function updateInfoRight() {
 	}
 }
 
+function updateInfoRightAutos() {
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var stock = stocks[currStockIndex];
+		document.getElementById("sellbelow").value = (stock.sellBelow == 0 ? "" : stock.sellBelow.toFixed(3));
+		document.getElementById("sellabove").value = (stock.sellAbove == 0 ? "" : stock.sellAbove.toFixed(3));
+	} else {
+		document.getElementById("sellbelow").value = "";
+		document.getElementById("sellabove").value = "";
+	}
+}
+
 function totalStockOwned() { //price of all owned stocks
 	var total = 0;
 	for(var i = 0; i < stocks.length; i++) {
@@ -571,6 +595,7 @@ function doTurn() {
 
 function clickStock(id) {
 	currGraph = id;
+	updateInfoRightAutos();
 }
 
 function stockIdToIndex(id) {
@@ -713,6 +738,52 @@ function updateAllAlerts() {
 		aalerts.innerHTML += "<p" + (alerts[i].seen ? "" : " class = \"new\"") + ">" + alerts[i].time + spaces + alerts[i].text + "</p>";
 	}
 }
+
+function updateAutoSells(event) { //copies text area values into stock object
+	var sellBelow = document.getElementById("sellbelow");
+	var sellAbove = document.getElementById("sellabove");
+	var currStockIndex = stockIdToIndex(currGraph);
+	if(currStockIndex != -1) {
+		var stock = stocks[currStockIndex];
+		if(parseFloat(sellBelow.value)) {
+			sellBelow.value = parseFloat(sellBelow.value).toFixed(3);
+			stock.sellBelow = parseFloat(sellBelow.value);
+		} else {
+			sellBelow.value = "";
+			stock.sellBelow = 0;
+		}
+		if(parseFloat(sellAbove.value)) {
+			sellAbove.value = parseFloat(sellAbove.value).toFixed(3);
+			stock.sellAbove = parseFloat(sellAbove.value);
+		} else {
+			sellAbove.value = "";
+			stock.sellAbove = 0;
+		}
+	} else {
+		sellBelow.value = "";
+		sellAbove.value = "";
+	}
+}
+
+function autoSellStocks() {
+	for(var i = 0; i < stocks.length; i++) {
+		var stock = stocks[i];
+		if(stock.amount > 0) {
+			if((stock.sellAbove != 0 && stock.getPrice(time) >= stock.sellAbove) || (stock.sellBelow != 0 && stock.getPrice(time) <= stock.sellBelow)) {
+				var cg = currGraph;
+				currGraph = stock.id;
+				sellAllButton();
+				currGraph = cg;
+				addAlert(stock.dispName() + " was sold automatically at " + stock.getPrice(time).toFixed(3));
+				stock.sellAbove = 0;
+				stock.sellBelow = 0;
+				if(currGraph == stock.id) {
+					updateInfoRightAutos();
+				}
+			}
+		}
+	}
+}
 </script>
 </head>
 <body onselectstart = "return false">
@@ -735,6 +806,11 @@ function updateAllAlerts() {
 	<div class = "button" id = "sellbutton" onclick = "sellButton()" style = "width:30%;height:35px;">Sell for 00000.000</div><br><br>
 	<div class = "button" id = "buyallbutton" style = "width:45.5%;height:35px;" onclick = "buyAllButton()">Buy Max for 00000.000</div>
 	<div class = "button" id = "sellallbutton" style = "width:45.5%;height:35px;" onclick = "sellAllButton()">Sell All for 00000.000</div><br><br>
+	<p>Sell when above
+		<input type = "text" id = "sellabove" placeholder = "Never" style = "float:none;width:60px;" onchange = "updateAutoSells(event)" onclick = "this.select()">
+		or when below
+		<input type = "text" id = "sellbelow" placeholder = "Never" style = "float:none;width:60px;" onchange = "updateAutoSells(event)" onclick = "this.select()">
+	</p>
 </div>
 <div class = "alerts" onclick = "clickAlerts()"><canvas id = "alertscanvas"></canvas></div>
 <div id = "fader" class = "fader" onclick = "clickFader()"></div>
