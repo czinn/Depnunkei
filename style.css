@@ -170,9 +170,33 @@ div.stock v {
 	color:#FFFFFF;
 }
 
-div.stockholder {
+div.timer {
 	position:absolute;
 	top:0px;
+	left:0px;
+	height:24px;
+	font-size:24px;
+	width:300px;
+}
+
+div.timer div {
+	position:static;
+	border-style:none;
+	padding:0px;
+	margin:0px 5px;
+}
+
+div.timer div.lefttime {
+	float:left;
+}
+
+div.timer div.righttime {
+	float:right;
+}
+
+div.stockholder {
+	position:absolute;
+	top:40px;
 	left:0px;
 	bottom:24px;
 	width:300px;

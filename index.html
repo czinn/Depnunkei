@@ -4,7 +4,7 @@
 <script src = "perlin.js"></script>
 <script>
 var FPS = 20.0; //should be at least 20 for alerts
-var GAME_SPEED = 100.0; //ticks per minute (default 1.0)
+var GAME_SPEED = 0.5; //seconds per tick
 var ALERT_SPEED = 100.0; //pixels per second
 
 var frames; //frames since last tick
@@ -84,7 +84,8 @@ var mouseY = -1;
 
 var cash = 1000;
 
-function Alert(text) {
+function Alert(t, text) {
+	this.time = t;
 	this.text = text;
 	var canvas = document.getElementById("alertscanvas");
 	var ctx = canvas.getContext("2d");
@@ -106,12 +107,26 @@ function Alert(text) {
 	}
 }
 
+function getStockZero(p) {
+	var list = new Array();
+	for(var i = 0; i < 1000; i++) {
+		var d = 3; //because javascript hates negative numbers
+		for(var j = 0; j < 10; j++) {
+			d += (1 - Math.random() * 2) * Math.pow(p, j);
+		}
+		list.push(d);
+	}
+	list = list.sort();
+	return list[50] - 3;
+}
+
 function addAlert(text) {
-	alerts.push(new Alert(text));
+	alerts.push(new Alert(time, text));
 	//Potentially do something
 }
 
 function Stock(time) {
+	
 	this.name = "placeholderplaceholder";
 	this.abbv = "placeholder";
 	while(getStockIdByAbbv(this.abbv) != -1 || this.name.length > 16) {
@@ -127,15 +142,17 @@ function Stock(time) {
 	}
 		
 	this.offset = time - Math.round(Math.random() * 100);
+	this.firstData = time - 100;
 	
 	this.id = stockId;
 	stockId++;
 	
-	this.zeropoint = -0.1444;
 	this.amplitude = (5 + 95 * Math.random());
 	
-	this.perlinZoom = 0.001 + 0.005 * Math.random();
+	this.perlinZoom = 0.001 + 0.009 * Math.random();
 	this.perlinPersist = 0.4 + 0.4 * Math.random() - this.amplitude * 0.001;
+	
+	this.zeropoint = getStockZero(this.perlinPersist);
 	
 	this.amount = 0; //number of units that the player has bought
 	this.crashed = false;
@@ -145,9 +162,16 @@ function Stock(time) {
 		return Math.round(price * 1000) / 1000;
 	}
 	
+	this.isCrash = function(tStart, tEnd) {
+		for(var i = tStart; i <= tEnd; i++) {
+			if(this.getPrice(i) <= 0) return true;
+		}
+		return false;
+	}
+	
 	do {
 		this.perlinSeed = Math.round(Math.random() * 10000);
-	} while(this.getPrice(time) < 0);
+	} while(this.isCrash(this.firstData, this.firstData + 120));
 	
 	this.getChange = function(t) {
 		return this.getPrice(t) - this.getPrice(t - 1);
@@ -417,7 +441,7 @@ function updateStockHolder(t) {
 
 function tick() {
 	frames++;
-	if(frames >= 60.0 * FPS / GAME_SPEED) {
+	if(frames >= FPS * GAME_SPEED) {
 		frames = 0;
 		//Do special stuff
 		time++;
@@ -425,6 +449,7 @@ function tick() {
 		updateStockHolder(time);
 	}
 	//Do less special stuff
+	updateTimers();
 	updateGraph();
 	updateInfoLeft();
 	updateInfoRight();
@@ -434,6 +459,16 @@ function tick() {
 	setTimeout(tick, 1000.0 / FPS);
 }
 
+function updateTimers() {
+	var ttime = document.getElementById("thetime");
+	var cdown = document.getElementById("thecountdown");
+	ttime.innerHTML = "Time: " + time;
+	var seconds = Math.ceil(GAME_SPEED - frames / FPS);
+	var minutes = Math.floor(seconds / 60);
+	seconds = Math.round(seconds - minutes * 60);
+	cdown.innerHTML = minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
+}
+
 function updateGraph() {
 	//Draw the currently selected graph
 	var canvas = document.getElementById("graphcanvas");
@@ -441,10 +476,11 @@ function updateGraph() {
 	canvas.height = canvas.parentElement.scrollHeight - 10;
 	var currStockIndex = stockIdToIndex(currGraph);
 	if(currStockIndex != -1) {
+		var stock = stocks[currStockIndex];
 		if(graphType) {
-			stocks[currStockIndex].drawLineGraph(-100, time, canvas);
+			stock.drawLineGraph(stock.firstData, time, canvas);
 		} else {
-			stocks[currStockIndex].drawStockGraph(-100, time, canvas);
+			stock.drawStockGraph(stock.firstData, time, canvas);
 		}
 	} else {
 		var ctx = canvas.getContext("2d");
@@ -668,13 +704,22 @@ function clickAlerts() {
 function updateAllAlerts() {
 	var aalerts = document.getElementById("allalerts");
 	aalerts.innerHTML = "<p class = \"title\">Message Log</p>";
+	aalerts.innerHTML += "<p><u>Time</u>&nbsp;&nbsp;&nbsp;<u>Message</u></p>";
 	for(var i = alerts.length - 1; i >= 0; i--) {
-		aalerts.innerHTML += "<p" + (alerts[i].seen ? "" : " class = \"new\"") + ">" + alerts[i].text + "</p>";
+		var spaces = "";
+		for(var j = 0; j < 7 - (alerts[i].time + "").length; j++) {
+			spaces += "&nbsp;";
+		}
+		aalerts.innerHTML += "<p" + (alerts[i].seen ? "" : " class = \"new\"") + ">" + alerts[i].time + spaces + alerts[i].text + "</p>";
 	}
 }
 </script>
 </head>
 <body onselectstart = "return false">
+<div class = "timer">
+	<div class = "lefttime" id = "thetime">Time: 0</div>
+	<div class = "righttime" id = "thecountdown">15:00</div>
+</div>
 <div class = "stockholder" id = "stockholder"></div>
 <div class = "graphholder">
 	<canvas id = "graphcanvas" onmousemove = "graphMouseMove(event)" onmouseleave = "graphMouseLeave(event)"></canvas>
