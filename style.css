@@ -213,8 +213,14 @@ div.graphholder {
 
 div.graphholder canvas {
 	width:100%;
-	height:100%;
+	top:0px;
+	bottom:50px;
 	margin:0px;
+}
+
+div.graphholder p {
+	text-align:center;
+	width:100%;
 }
 
 div.infoholderleft {

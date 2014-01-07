@@ -4,7 +4,7 @@
 <script src = "perlin.js"></script>
 <script>
 var FPS = 20.0; //should be at least 20 for alerts
-var GAME_SPEED = 0.5; //seconds per tick
+var GAME_SPEED = 120.0; //seconds per tick
 var ALERT_SPEED = 100.0; //pixels per second
 
 var frames; //frames since last tick
@@ -77,6 +77,8 @@ var time;
 
 var graphType = true;
 var currGraph = -1;
+var graphStart = -100; //-100 is start of stock
+var graphEnd = -100; //-100 is present
 var stockId = 0;
 
 var mouseX = -1;
@@ -291,6 +293,8 @@ function Stock(time) {
 		var scale = (canvas.height - 30) / (highest - lowest);
 		var yLabelInterval = 5;
 		while((highest - lowest) / yLabelInterval > (canvas.height - 30) / 40 && yLabelInterval < 20) yLabelInterval *= 2;
+		var xLabelInterval = 5;
+		while((tEnd - tStart) / xLabelInterval > (canvas.width - 30) / 40) xLabelInterval *= 2;
 		
 		// Label the graph
 		ctx.fillStyle = "#000000";
@@ -302,6 +306,10 @@ function Stock(time) {
 		for(var i = 0; i <= (highest - lowest) / yLabelInterval; i++) {
 			var text = (lowest + i * yLabelInterval) + "";
 			ctx.fillText(text, 18 - ctx.measureText(text).width, canvas.height - 18 - (i * (canvas.height - 30) * yLabelInterval / (highest - lowest)));
+		}
+		for(var i = 0; i <= (tEnd - tStart) / xLabelInterval; i++) {
+			var text = (tStart + i * xLabelInterval) + "";
+			ctx.fillText(text, 20 + (i * (canvas.width - 30) * xLabelInterval / (tEnd - tStart)) - ctx.measureText(text).width / 2, canvas.height - 5);
 		}
 		
 		//Draw the bars
@@ -322,6 +330,16 @@ function Stock(time) {
 			//Draw the bar
 			ctx.fillStyle = close > open ? "#00FF00" : "#FF0000";
 			ctx.fillRect(23 + i * barWidth, canvas.height - 20 - (Math.max(open, close) - lowest) * scale, barWidth - 3, Math.abs(open - close) * scale);
+			if(mouseX != -1 && mouseX >= 23 + i * barWidth && mouseX < 20 + (i + 1) * barWidth) {
+				//Draw border around bar
+				ctx.strokeRect(23 + i * barWidth, canvas.height - 20 - (Math.max(open, close) - lowest) * scale, barWidth - 3, Math.abs(open - close) * scale);
+				ctx.fillStyle = "#000000";
+				ctx.font = "16px Lucida";
+				ctx.fillText("Open: " + open.toFixed(3), canvas.width / 2 - 180 - ctx.measureText("Open: " + open.toFixed(3)).width / 2, canvas.height - 40);
+				ctx.fillText("Close: " + close.toFixed(3), canvas.width / 2 - 60 - ctx.measureText("Close: " + close.toFixed(3)).width / 2, canvas.height - 40);
+				ctx.fillText("High: " + high.toFixed(3), canvas.width / 2 + 60 - ctx.measureText("High: " + high.toFixed(3)).width / 2, canvas.height - 40);
+				ctx.fillText("Low: " + low.toFixed(3), canvas.width / 2 + 180 - ctx.measureText("Low: " + low.toFixed(3)).width / 2, canvas.height - 40);
+			}
 		}
 	}
 	
@@ -384,8 +402,8 @@ function Stock(time) {
 				ctx.fillStyle = "#000000";
 				ctx.font = "16px Lucida";
 				ctx.fillRect(currX - 2, currY - 2, 4, 4);
-				ctx.fillText("Time: " + (i + tStart), canvas.width / 2 - 50, canvas.height - 40);
-				ctx.fillText("Price: " + this.getPrice(i + tStart).toFixed(3), canvas.width / 2 + 50, canvas.height - 40);
+				ctx.fillText("Time: " + (i + tStart), canvas.width / 2 - 50 - ctx.measureText("Time: " + (i + tStart)).width / 2, canvas.height - 40);
+				ctx.fillText("Price: " + this.getPrice(i + tStart).toFixed(3), canvas.width / 2 + 50 - ctx.measureText("Price: " + this.getPrice(i + tStart).toFixed(3)).width / 2, canvas.height - 40);
 				drawnMousePoint = true;
 			}
 			
@@ -485,14 +503,18 @@ function updateGraph() {
 	//Draw the currently selected graph
 	var canvas = document.getElementById("graphcanvas");
 	canvas.width = canvas.parentElement.scrollWidth - 10;
-	canvas.height = canvas.parentElement.scrollHeight - 10;
+	while(canvas.height != canvas.parentElement.scrollHeight - 60)
+		canvas.height = canvas.parentElement.scrollHeight - 60;
 	var currStockIndex = stockIdToIndex(currGraph);
 	if(currStockIndex != -1) {
 		var stock = stocks[currStockIndex];
+		var realStart = Math.max(graphStart, stock.firstData);
+		var realEnd = Math.min(graphEnd, time);
+		if(graphEnd == -100) realEnd = time;
 		if(graphType) {
-			stock.drawLineGraph(stock.firstData, time, canvas);
+			stock.drawLineGraph(realStart, realEnd, canvas);
 		} else {
-			stock.drawStockGraph(stock.firstData, time, canvas);
+			stock.drawStockGraph(realStart, realEnd, canvas);
 		}
 	} else {
 		var ctx = canvas.getContext("2d");
@@ -589,7 +611,7 @@ function totalStockOwned() { //price of all owned stocks
 	return total;
 }
 
-function doTurn() {
+function changeGraphType() {
 	graphType = !graphType;
 }
 
@@ -784,6 +806,25 @@ function autoSellStocks() {
 		}
 	}
 }
+
+function updateGraphRange(event) {
+	var graphFrom = document.getElementById("graphfrom");
+	var graphTo = document.getElementById("graphto");
+	if(parseInt(graphFrom.value)) {
+		graphFrom.value = parseInt(graphFrom.value);
+		graphStart = parseInt(graphFrom.value);
+	} else {
+		graphFrom.value = "";
+		graphStart = -100;
+	}
+	if(parseInt(graphTo.value)) {
+		graphTo.value = parseInt(graphTo.value);
+		graphEnd = parseInt(graphTo.value);
+	} else {
+		graphTo.value = "";
+		graphEnd = -100;
+	}
+}
 </script>
 </head>
 <body onselectstart = "return false">
@@ -794,6 +835,13 @@ function autoSellStocks() {
 <div class = "stockholder" id = "stockholder"></div>
 <div class = "graphholder">
 	<canvas id = "graphcanvas" onmousemove = "graphMouseMove(event)" onmouseleave = "graphMouseLeave(event)"></canvas>
+	<p>Graph from
+		<input type = "text" id = "graphfrom" placeholder = "Start" style = "float:none;width:60px;" onchange = "updateGraphRange(event)" onclick = "this.select()">
+		to
+		<input type = "text" id = "graphto" placeholder = "Now" style = "float:none;width:60px;" onchange = "updateGraphRange(event)" onclick = "this.select()">
+	</p>
+		
+	<div class = "button" style = "position:absolute;bottom:9px;right:9px;" onclick = "changeGraphType()">Change Graph Type</div>
 </div>
 <div id = "infoleft" class = "infoholderleft">
 </div>
@@ -805,7 +853,7 @@ function autoSellStocks() {
 	<input type = "text" id = "buysellamt" placeholder = "Amount" style = "width:30%;height:45px;"></input>
 	<div class = "button" id = "sellbutton" onclick = "sellButton()" style = "width:30%;height:35px;">Sell for 00000.000</div><br><br>
 	<div class = "button" id = "buyallbutton" style = "width:45.5%;height:35px;" onclick = "buyAllButton()">Buy Max for 00000.000</div>
-	<div class = "button" id = "sellallbutton" style = "width:45.5%;height:35px;" onclick = "sellAllButton()">Sell All for 00000.000</div><br><br>
+	<div class = "button" id = "sellallbutton" style = "width:45.5%;height:35px;" onclick = "sellAllButton()">Sell All for 00000.000</div><br><br><br><br><br>
 	<p>Sell when above
 		<input type = "text" id = "sellabove" placeholder = "Never" style = "float:none;width:60px;" onchange = "updateAutoSells(event)" onclick = "this.select()">
 		or when below
